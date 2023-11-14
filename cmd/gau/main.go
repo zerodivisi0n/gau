@@ -29,7 +29,7 @@ func main() {
 		log.Warn(err)
 	}
 
-	results := make(chan string)
+	results := make(chan output.Result)
 
 	var out = os.Stdout
 	// Handle results in background

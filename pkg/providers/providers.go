@@ -2,7 +2,9 @@ package providers
 
 import (
 	"context"
+
 	mapset "github.com/deckarep/golang-set/v2"
+	"github.com/lc/gau/v2/pkg/output"
 	"github.com/valyala/fasthttp"
 )
 
@@ -10,7 +12,7 @@ const Version = `2.2.1`
 
 // Provider is a generic interface for all archive fetchers
 type Provider interface {
-	Fetch(ctx context.Context, domain string, results chan string) error
+	Fetch(ctx context.Context, domain string, results chan output.Result) error
 	Name() string
 }
 

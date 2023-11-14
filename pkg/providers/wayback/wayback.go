@@ -3,8 +3,10 @@ package wayback
 import (
 	"context"
 	"fmt"
+
 	jsoniter "github.com/json-iterator/go"
 	"github.com/lc/gau/v2/pkg/httpclient"
+	"github.com/lc/gau/v2/pkg/output"
 	"github.com/lc/gau/v2/pkg/providers"
 	"github.com/sirupsen/logrus"
 )
@@ -35,7 +37,7 @@ type waybackResult [][]string
 
 // Fetch fetches all urls for a given domain and sends them to a channel.
 // It returns an error should one occur.
-func (c *Client) Fetch(ctx context.Context, domain string, results chan string) error {
+func (c *Client) Fetch(ctx context.Context, domain string, results chan output.Result) error {
 	pages, err := c.getPagination(domain)
 	if err != nil {
 		return fmt.Errorf("failed to fetch wayback pagination: %s", err)
@@ -68,7 +70,10 @@ func (c *Client) Fetch(ctx context.Context, domain string, results chan string) 
 			// output results
 			// Slicing as [1:] to skip first result by default
 			for _, entry := range result[1:] {
-				results <- entry[0]
+				results <- output.Result{
+					URL:      entry[0],
+					Provider: Name,
+				}
 			}
 		}
 	}

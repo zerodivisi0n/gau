@@ -3,9 +3,11 @@ package otx
 import (
 	"context"
 	"fmt"
+
 	"github.com/bobesa/go-domain-util/domainutil"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/lc/gau/v2/pkg/httpclient"
+	"github.com/lc/gau/v2/pkg/output"
 	"github.com/lc/gau/v2/pkg/providers"
 	"github.com/sirupsen/logrus"
 )
@@ -45,7 +47,7 @@ func (c *Client) Name() string {
 	return Name
 }
 
-func (c *Client) Fetch(ctx context.Context, domain string, results chan string) error {
+func (c *Client) Fetch(ctx context.Context, domain string, results chan output.Result) error {
 	for page := uint(1); ; page++ {
 		select {
 		case <-ctx.Done():
@@ -63,7 +65,10 @@ func (c *Client) Fetch(ctx context.Context, domain string, results chan string) 
 			}
 
 			for _, entry := range result.URLList {
-				results <- entry.URL
+				results <- output.Result{
+					URL:      entry.URL,
+					Provider: Name,
+				}
 			}
 
 			if !result.HasNext {
