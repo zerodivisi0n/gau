@@ -36,6 +36,7 @@ type Config struct {
 	Providers         []string          `mapstructure:"providers"`
 	Blacklist         []string          `mapstructure:"blacklist"`
 	JSON              bool              `mapstructure:"json"`
+	ExtraFields       []string          `mapstructure:"extrafields"`
 	URLScan           URLScanConfig     `mapstructure:"urlscan"`
 	OTX               string            `mapstructure:"otx"`
 	Outfile           string            // output file to write to
@@ -71,9 +72,10 @@ func (c *Config) ProviderConfig() (*providers.Config, error) {
 			},
 			Dial: dialer,
 		},
-		Providers: c.Providers,
-		Output:    c.Outfile,
-		JSON:      c.JSON,
+		Providers:   c.Providers,
+		Output:      c.Outfile,
+		JSON:        c.JSON,
+		ExtraFields: c.ExtraFields,
 		URLScan: providers.URLScan{
 			Host:   c.URLScan.Host,
 			APIKey: c.URLScan.APIKey,
@@ -108,6 +110,7 @@ func New() *Options {
 	pflag.Bool("fp", false, "remove different parameters of the same endpoint")
 	pflag.Bool("verbose", false, "show verbose output")
 	pflag.Bool("json", false, "output as json")
+	pflag.StringSlice("ef", []string{}, "extra fields in json output (timestamp,status_code,mimetype,content_length)")
 
 	// filter flags
 	pflag.StringSlice("mc", []string{}, "list of status codes to match")
@@ -173,6 +176,7 @@ func (o *Options) DefaultConfig() *Config {
 		Providers:         []string{"wayback", "commoncrawl", "otx", "urlscan"},
 		Blacklist:         []string{},
 		JSON:              false,
+		ExtraFields:       []string{},
 		Outfile:           "",
 	}
 
@@ -236,6 +240,11 @@ func (o *Options) getFlagValues(c *Config) {
 	c.JSON = json
 	c.Verbose = verbose
 
+	ef := o.viper.GetStringSlice("ef")
+	if len(ef) > 0 {
+		c.ExtraFields = ef
+	}
+
 	// get filter flags
 	mc := o.viper.GetStringSlice("mc")
 	fc := o.viper.GetStringSlice("fc")
@@ -284,4 +293,5 @@ func (o *Options) getFlagValues(c *Config) {
 	if seenFilterFlag {
 		c.Filters = filters
 	}
+
 }

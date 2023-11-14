@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"path"
 	"strings"
+	"time"
 
 	mapset "github.com/deckarep/golang-set/v2"
 	jsoniter "github.com/json-iterator/go"
@@ -12,8 +13,12 @@ import (
 )
 
 type Result struct {
-	URL      string `json:"url"`
-	Provider string `json:"provider"`
+	URL           string    `json:"url"`
+	Provider      string    `json:"provider"`
+	Timestamp     time.Time `json:"timestamp"`
+	ContentType   string    `json:"content_type,omitempty"`
+	StatusCode    int       `json:"status_code,omitempty"`
+	ContentLength int       `json:"content_length,omitempty"`
 }
 
 func WriteURLs(writer io.Writer, results <-chan Result, blacklistMap mapset.Set[string], RemoveParameters bool) error {

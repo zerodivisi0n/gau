@@ -32,6 +32,7 @@ type Config struct {
 	Blacklist         mapset.Set[string]
 	Output            string
 	JSON              bool
+	ExtraFields       []string
 	URLScan           URLScan
 	OTX               string
 }

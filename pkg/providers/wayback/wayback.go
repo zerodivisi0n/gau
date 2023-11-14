@@ -3,6 +3,9 @@ package wayback
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
+	"time"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/lc/gau/v2/pkg/httpclient"
@@ -22,10 +25,15 @@ var _ providers.Provider = (*Client)(nil)
 type Client struct {
 	filters providers.Filters
 	config  *providers.Config
+	setter  FieldsSetter
 }
 
 func New(config *providers.Config, filters providers.Filters) *Client {
-	return &Client{filters, config}
+	return &Client{
+		filters: filters,
+		config:  config,
+		setter:  NewFieldsSetter(config),
+	}
 }
 
 func (c *Client) Name() string {
@@ -70,10 +78,12 @@ func (c *Client) Fetch(ctx context.Context, domain string, results chan output.R
 			// output results
 			// Slicing as [1:] to skip first result by default
 			for _, entry := range result[1:] {
-				results <- output.Result{
+				res := output.Result{
 					URL:      entry[0],
 					Provider: Name,
 				}
+				c.setter.Set(entry, &res)
+				results <- res
 			}
 		}
 	}
@@ -86,9 +96,10 @@ func (c *Client) formatURL(domain string, page uint) string {
 		domain = "*." + domain
 	}
 	filterParams := c.filters.GetParameters(true)
+
 	return fmt.Sprintf(
-		"https://web.archive.org/cdx/search/cdx?url=%s/*&output=json&collapse=urlkey&fl=original&page=%d",
-		domain, page,
+		"https://web.archive.org/cdx/search/cdx?url=%s/*&output=json&collapse=urlkey&fl=%s&page=%d",
+		domain, strings.Join(c.setter.Fields, ","), page,
 	) + filterParams
 }
 
@@ -108,4 +119,65 @@ func (c *Client) getPagination(domain string) (uint, error) {
 	}
 
 	return paginationResult, nil
+}
+
+type FieldsSetter struct {
+	Fields []string
+
+	TimestampIndex     int
+	ContentTypeIndex   int
+	StatusCodeIndex    int
+	ContentLengthIndex int
+}
+
+func NewFieldsSetter(c *providers.Config) FieldsSetter {
+	fs := FieldsSetter{}
+	fs.Fields = make([]string, 0, 1+len(c.ExtraFields))
+	fs.Fields = append(fs.Fields, "original")
+
+	for _, f := range c.ExtraFields {
+		switch f {
+		case "timestamp":
+			fs.TimestampIndex = len(fs.Fields)
+			fs.Fields = append(fs.Fields, "timestamp")
+		case "content_type":
+			fs.ContentTypeIndex = len(fs.Fields)
+			fs.Fields = append(fs.Fields, "mimetype")
+		case "status_code":
+			fs.StatusCodeIndex = len(fs.Fields)
+			fs.Fields = append(fs.Fields, "statuscode")
+		case "content_length":
+			fs.ContentLengthIndex = len(fs.Fields)
+			fs.Fields = append(fs.Fields, "length")
+		default:
+			logrus.Warnf("unknown extra field %s", f)
+		}
+	}
+
+	return fs
+}
+
+func (s FieldsSetter) Set(entry []string, result *output.Result) {
+	var err error
+	if index := s.TimestampIndex; index > 0 {
+		result.Timestamp, err = time.ParseInLocation("20060102150405", entry[index], time.UTC)
+		if err != nil {
+			logrus.Warnf("failed to parse timestamp field %s: %v", entry[index], err)
+		}
+	}
+	if index := s.ContentTypeIndex; index > 0 {
+		result.ContentType = entry[index]
+	}
+	if index := s.StatusCodeIndex; index > 0 {
+		result.StatusCode, err = strconv.Atoi(entry[index])
+		if err != nil {
+			logrus.Warnf("failed to parse status code field %s: %v", entry[index], err)
+		}
+	}
+	if index := s.ContentLengthIndex; index > 0 {
+		result.ContentLength, err = strconv.Atoi(entry[index])
+		if err != nil {
+			logrus.Warnf("failed to parse content length field %s: %v", entry[index], err)
+		}
+	}
 }
